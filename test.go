@@ -37,14 +37,32 @@ func cosineSimilarity(userRatings1, userRatings2 map[int]float64) float64 {
 }
 
 func UpdateAllUserSimilars(db *sql.DB) {
-
+	// var userID = 2
 	ratings, _ := fetchRatings(db)
 
 	for userID := range ratings {
+		fmt.Println("start for this user: ", userID)
 		users := generateRecommendations(ratings, userID)
-		insertListenendUsers(db, userID, users)
+		fmt.Println("generated recom users for this user: ", userID)
+		insertSimilarUsers(db, userID, users)
+
 	}
 
+}
+
+func fetchNextMusic(db *sql.DB, userID int) (int, error) {
+	var musicID int
+	err := db.QueryRow(`
+		select 
+			music_id
+		from ratings
+		where user_id != $1 and 
+			music_id not in (select unnest(music_ids) from l_musics where user_id = $1) and
+			user_id in (select unnest(similar_user_ids) from l_musics where user_id = $1)
+		order by rating desc
+		limit 1;
+		`, userID).Scan(&musicID)
+	return musicID, err
 }
 
 // Generate recommendations for a user based on similar users
@@ -65,17 +83,20 @@ func generateRecommendations(ratings map[int]map[int]float64, targetUserID int) 
 	return getTopNSimilarUsers(similarities, 100)
 }
 
-func insertListenendUsers(db *sql.DB, targetUser int, users []int) {
+func insertSimilarUsers(db *sql.DB, targetUser int, users []int) {
 
 	for _, userID := range users {
 		_, err := db.Exec(
 			`
-			UPDATE l_musics 
-				SET similar_user_ids = CASE
-					WHEN array_position(similar_user_ids, $2) IS NULL THEN array_append(similar_user_ids, $2)
-					ELSE similar_user_ids
-				END
-        	WHERE user_id = $1;
+			
+    INSERT INTO l_musics (user_id, similar_user_ids)
+        VALUES ($1, ARRAY[$2]::int[])  -- Insert a new row with the user_id and music_id
+        ON CONFLICT (user_id)   -- If the user_id already exists, update the similar_user_ids array
+    DO UPDATE
+        SET similar_user_ids = CASE
+            WHEN array_position(l_musics.similar_user_ids, $2) IS NULL THEN array_append(l_musics.similar_user_ids, $2)
+            ELSE l_musics.similar_user_ids
+        END;
 			`,
 			targetUser, userID,
 		)
@@ -113,11 +134,6 @@ func getTopNSimilarUsers(similarities map[int]float64, n int) []int {
 	for i := 0; i < n && i < len(userSimList); i++ {
 
 		topNUsers = append(topNUsers, userSimList[i].userID)
-
-		if userSimList[i].similarity < 1 {
-			fmt.Println("userID:", userSimList[i].userID)
-			fmt.Printf("similarity: %f \n", userSimList[i].similarity)
-		}
 
 	}
 

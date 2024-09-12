@@ -27,8 +27,8 @@ create table ratings (
 
 create table l_musics(
     "user_id" int not null,
-    "music_ids" int[] ,
-    "similar_user_ids" int[] ,
+    "music_ids" int[] default '{}'::int[],
+    "similar_user_ids" int[] default '{}'::int[],
     primary key ("user_id"),
     CONSTRAINT l_musics_user_id_fk
         FOREIGN KEY ("user_id")
