@@ -24,7 +24,7 @@ type Recommendation struct {
 
 func main() {
 
-	// targetUserID := 1 // Example user ID
+	targetUserID := 1 // Example user ID
 	startTime := time.Now()
 	// Set up PostgreSQL connection
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
@@ -42,13 +42,13 @@ func main() {
 	}
 
 	// ///////////////////////////////////////////////////////////////////////////////
-	// musicID, err := fetchNextMusic(db, targetUserID)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println(musicID)
+	musicID, err := fetchNextMusic(db, targetUserID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("recommending this music: ", musicID)
+	fmt.Printf("Time taken: %s\n", time.Since(startTime)) // Time average: 206ms
 	// ///////////////////////////////////////////////////////////////////////////////
-	UpdateAllUserSimilars(db)
+	// UpdateAllUserSimilars(db)
 
-	fmt.Printf("Time taken: %s\n", time.Since(startTime))
 }
